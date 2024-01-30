@@ -1,0 +1,64 @@
+.container {
+  padding: 0 1rem;
+  height: 100%;
+}
+
+.tableContainer {
+  border: 1px solid #36363C;
+  border-radius: 8px;
+  overflow: scroll;
+  padding: 0 1rem;
+  height: calc(100% - 72px);
+}
+
+.tableContentStyle {
+  color: #ffffff
+}
+
+.tableRowStyle {
+  height: 3.2rem;
+}
+
+.tableAlterRowColor {
+  background-color: #2B2C35;
+}
+
+.tableRowColor {
+  background-color: #1B1B1F; 
+}
+
+.tableHeadingStyle {
+  font-size: 0.8rem; 
+  text-align: start;
+  padding-left: 0.4rem;
+}
+
+.tableDataStyle {
+  font-size: 0.7rem;
+  padding-left: 0.4rem;
+}
+
+.notLogged {
+  color: white;
+}
+
+.stickyCol {
+  position: -webkit-sticky;
+  position: sticky;
+  right: -16px;
+}
+
+.stickHeading {
+  background-color: #1B1B1F;
+  width: 64px;
+  border-left: 1px solid #36363C;
+}
+
+.optionsIcon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 64px;
+  height: 3.2rem;
+  border-left: 1px solid #36363C;
+}
