@@ -6,7 +6,14 @@ import _isEmpty from "lodash/isEmpty";
 import _values from "lodash/values";
 import _sortBy from "lodash/sortBy";
 import { BsThreeDots } from "react-icons/bs";
-import { query, onValue, ref, equalTo, orderByChild } from "firebase/database";
+import {
+  query,
+  onValue,
+  ref,
+  equalTo,
+  orderByChild,
+  get,
+} from "firebase/database";
 
 import styles from "./content.module.css";
 import AuthContext from "@/contexts/AuthContext";
@@ -19,6 +26,8 @@ import {
 } from "@/constants/common";
 import { updateCampaign } from "@/utils/firebase";
 import { toast } from "react-toastify";
+import { updateRandomDigits } from "@/utils/common";
+import UpdateBudget from "../updateBudget";
 
 // const dataSource = [
 //   {
@@ -65,9 +74,7 @@ const ACCESSORS = {
   TARGETCPA: "targetCPA",
 };
 
-const random4Digit = Math.floor(1000 + Math.random() * 9000);
-const random3Digit = Math.floor(100 + Math.random() * 900);
-const columns = [
+const getColumns = (fourDigit, threeDigit, onBudgetClick) => [
   {
     title: "Id",
     dataIndex: ACCESSORS.ID,
@@ -123,7 +130,17 @@ const columns = [
     dataIndex: ACCESSORS.BUDGET,
     key: ACCESSORS.BUDGET,
     width: 100,
-    formatter: (data, columnValue) => `$${columnValue || 0}`,
+    formatter: (data, columnValue) => (
+      <p
+        style={{
+          border: "1px solid white",
+          borderRadius: 4,
+          padding: 4,
+          margin: 4,
+        }}
+        onClick={() => onBudgetClick(data)}
+      >{`$${columnValue || 0}`}</p>
+    ),
   },
   {
     title: "Bid",
@@ -139,7 +156,7 @@ const columns = [
     width: 100,
     formatter: (data, columnValue) => {
       const conversions = _get(data, ACCESSORS.CONVERSIONS);
-      return conversions * random4Digit;
+      return conversions * fourDigit;
     },
   },
   {
@@ -149,7 +166,7 @@ const columns = [
     width: 100,
     formatter: (data, columnValue) => {
       const conversions = _get(data, ACCESSORS.CONVERSIONS);
-      return conversions * random3Digit;
+      return conversions * threeDigit;
     },
   },
   {
@@ -165,8 +182,8 @@ const columns = [
     key: ACCESSORS.CTR,
     width: 100,
     formatter: (data, columnValue) => {
-      const clicks = _get(data, ACCESSORS.CONVERSIONS) * random3Digit;
-      const impressions = _get(data, ACCESSORS.CONVERSIONS) * random4Digit;
+      const clicks = _get(data, ACCESSORS.CONVERSIONS) * threeDigit;
+      const impressions = _get(data, ACCESSORS.CONVERSIONS) * fourDigit;
       if (impressions)
         return `${Math.round((clicks / impressions) * 100, 2)} %`;
       return "0%";
@@ -195,6 +212,7 @@ const columns = [
 ];
 
 const getDropDownOptions = (data) => {
+  const dropDownOptions = [{}];
   if (_get(data, ACCESSORS.STATUS) === CAMPAIGN_STATUS.ACTIVE) {
     return [
       {
@@ -214,6 +232,8 @@ const getDropDownOptions = (data) => {
 const Content = () => {
   const [campaigns, setCampaigns] = useState([]);
   const { user } = useContext(AuthContext);
+  const [randomDigitsUpdate, setRandomDigitsUpdate] = useState(null);
+  const [selectedCampaign, setSelectedCampaign] = useState(null);
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -223,6 +243,21 @@ const Content = () => {
         const campaignsResponse = snapshot.val();
         setCampaigns(_sortBy(_values(campaignsResponse), "createdAt"));
       });
+
+      const configRandomRef = query(ref(database, "config/randomValues"));
+      get(configRandomRef)
+        .then((snapshot) => {
+          if (snapshot.exists()) {
+            const randomDigits = updateRandomDigits(snapshot.val());
+            setRandomDigitsUpdate(randomDigits);
+          } else {
+            const randomDigits = updateRandomDigits(snapshot.val());
+            setRandomDigitsUpdate(randomDigits);
+          }
+        })
+        .catch((error) => {
+          console.error(error);
+        });
     }
     return unsubscribe;
   }, [user]);
@@ -237,6 +272,108 @@ const Content = () => {
         toast(msg);
       },
     };
+  };
+
+  console.log({ randomDigitsUpdate });
+
+  const getCampaignsData = () => {
+    if (_isEmpty(randomDigitsUpdate)) {
+      return (
+        <div
+          style={{
+            height: "100%",
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <p style={{ color: "white", fontSize: "0.8rem" }}>Getting Data...</p>
+        </div>
+      );
+    }
+
+    const onBudgetChange = (data) => {
+      setSelectedCampaign(data);
+    };
+    const hideBudgetModal = () => setSelectedCampaign(null);
+
+    const columns = getColumns(
+      _get(randomDigitsUpdate, "fourDigit"),
+      _get(randomDigitsUpdate, "threeDigit"),
+      onBudgetChange
+    );
+    return (
+      <>
+        <h4 className={styles.tableContentStyle}>List of campaigns</h4>
+        <table
+          style={{ overflow: "scroll" }}
+          border="0"
+          cellSpacing="0"
+          cellPadding="0"
+        >
+          <thead>
+            <tr className={styles.tableRowStyle}>
+              {_map(columns, ({ title, width }, index) => (
+                <th
+                  key={title + index}
+                  style={{ minWidth: width }}
+                  className={`${styles.tableContentStyle} ${styles.tableHeadingStyle}`}
+                >
+                  {title}
+                </th>
+              ))}
+              <th
+                className={`${styles.tableContentStyle} ${styles.tableHeadingStyle} ${styles.stickyCol} ${styles.stickHeading}`}
+              >
+                Options
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {_map(campaigns, (data, rowIndex) => (
+              <tr
+                key={rowIndex}
+                className={`${styles.tableRowStyle} ${
+                  rowIndex % 2 === 0 ? styles.tableAlterRowColor : ""
+                }`}
+              >
+                {_map(
+                  columns,
+                  ({ width, dataIndex, formatter }, columnDatIndex) => (
+                    <td
+                      key={dataIndex + columnDatIndex}
+                      style={{ minWidth: width }}
+                      className={`${styles.tableContentStyle} ${styles.tableDataStyle}`}
+                    >
+                      {formatter(data, data[dataIndex])}
+                    </td>
+                  )
+                )}
+                <td
+                  className={`${styles.tableContentStyle} ${
+                    styles.tableDataStyle
+                  } ${styles.stickyCol} ${styles.optionsIcon} ${
+                    rowIndex % 2 === 0
+                      ? styles.tableAlterRowColor
+                      : styles.tableRowColor
+                  }`}
+                >
+                  <Dropdown trigger={["click"]} menu={getMenuProps(data)}>
+                    <BsThreeDots />
+                  </Dropdown>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <UpdateBudget
+          selectedCampaign={selectedCampaign}
+          isBudgetModalOpen={selectedCampaign}
+          hideBudgetModal={hideBudgetModal}
+        />
+      </>
+    );
   };
 
   return (
@@ -256,70 +393,7 @@ const Content = () => {
             </p>
           </div>
         ) : (
-          <>
-            <h4 className={styles.tableContentStyle}>List of campaigns</h4>
-            <table
-              style={{ overflow: "scroll" }}
-              border="0"
-              cellSpacing="0"
-              cellPadding="0"
-            >
-              <thead>
-                <tr className={styles.tableRowStyle}>
-                  {_map(columns, ({ title, width }, index) => (
-                    <th
-                      key={title + index}
-                      style={{ minWidth: width }}
-                      className={`${styles.tableContentStyle} ${styles.tableHeadingStyle}`}
-                    >
-                      {title}
-                    </th>
-                  ))}
-                  <th
-                    className={`${styles.tableContentStyle} ${styles.tableHeadingStyle} ${styles.stickyCol} ${styles.stickHeading}`}
-                  >
-                    Options
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {_map(campaigns, (data, rowIndex) => (
-                  <tr
-                    key={rowIndex}
-                    className={`${styles.tableRowStyle} ${
-                      rowIndex % 2 === 0 ? styles.tableAlterRowColor : ""
-                    }`}
-                  >
-                    {_map(
-                      columns,
-                      ({ width, dataIndex, formatter }, columnDatIndex) => (
-                        <td
-                          key={dataIndex + columnDatIndex}
-                          style={{ minWidth: width }}
-                          className={`${styles.tableContentStyle} ${styles.tableDataStyle}`}
-                        >
-                          {formatter(data, data[dataIndex])}
-                        </td>
-                      )
-                    )}
-                    <td
-                      className={`${styles.tableContentStyle} ${
-                        styles.tableDataStyle
-                      } ${styles.stickyCol} ${styles.optionsIcon} ${
-                        rowIndex % 2 === 0
-                          ? styles.tableAlterRowColor
-                          : styles.tableRowColor
-                      }`}
-                    >
-                      <Dropdown trigger={["click"]} menu={getMenuProps(data)}>
-                        <BsThreeDots />
-                      </Dropdown>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
+          getCampaignsData()
         )}
       </div>
     </div>

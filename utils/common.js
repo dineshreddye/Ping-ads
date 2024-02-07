@@ -1,6 +1,9 @@
 import { STATUS } from "@/constants/common";
 import _size from "lodash/size";
+import _get from "lodash/get";
 import _isEmpty from "lodash/isEmpty";
+import moment from "moment";
+import { createConfigRandomDigits } from "./firebase";
 
 export const validEmailAndPasswordForSignin = (email, password) => {
   const reg = /^\S+@\S+\.\S+$/;
@@ -97,5 +100,19 @@ export const validateCampaignDetails = ({
 
   return {
     status: STATUS.SUCCESS,
+  };
+};
+
+export const updateRandomDigits = (randomInfo) => {
+  const lastUpdatedRandomDate = _get(randomInfo, "dateUpdated");
+  if (moment().diff(lastUpdatedRandomDate, "days") !== 0) {
+    const fourDigit = Math.floor(1000 + Math.random() * 9000);
+    const threeDigit = Math.floor(100 + Math.random() * 900);
+    createConfigRandomDigits({ fourDigit, threeDigit });
+    return { fourDigit, threeDigit };
+  }
+  return {
+    fourDigit: _get(randomInfo, "fourDigit"),
+    threeDigit: _get(randomInfo, "threeDigit"),
   };
 };

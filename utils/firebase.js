@@ -102,3 +102,23 @@ export const createConfigLastUpdatedDate = async () => {
     };
   }
 };
+
+export const createConfigRandomDigits = async ({ fourDigit, threeDigit }) => {
+  try {
+    await set(ref(database, `config/randomValues`), {
+      dateUpdated: moment().valueOf(),
+      fourDigit,
+      threeDigit,
+    });
+    return {
+      status: STATUS.SUCCESS,
+      msg: "Campaign updated successfully.",
+    };
+  } catch (error) {
+    console.log({ error });
+    return {
+      status: STATUS.FAILED,
+      msg: "Campaign updated failed. Plese try again later.",
+    };
+  }
+};
