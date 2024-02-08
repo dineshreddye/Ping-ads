@@ -1,6 +1,7 @@
 import { STATUS } from "@/constants/common";
 import _size from "lodash/size";
 import _get from "lodash/get";
+import _filter from "lodash/filter";
 import _isEmpty from "lodash/isEmpty";
 import moment from "moment";
 import { createConfigRandomDigits } from "./firebase";
@@ -115,4 +116,11 @@ export const updateRandomDigits = (randomInfo) => {
     fourDigit: _get(randomInfo, "fourDigit"),
     threeDigit: _get(randomInfo, "threeDigit"),
   };
+};
+
+export const getUndeletedCampaigns = (campaigns) => {
+  return _filter(campaigns, (campaign) => {
+    console.log({ campaign, deleted: _get(campaign, "isDeleted") });
+    return _get(campaign, "isDeleted") !== true;
+  });
 };

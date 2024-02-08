@@ -23,10 +23,11 @@ import {
   CAMPAIGN_STATUS,
   COUNTRIES_VS_BIDS,
   CREATIVE_LABELS,
+  DELETE_CAMPAIGN,
 } from "@/constants/common";
 import { updateCampaign } from "@/utils/firebase";
 import { toast } from "react-toastify";
-import { updateRandomDigits } from "@/utils/common";
+import { getUndeletedCampaigns, updateRandomDigits } from "@/utils/common";
 import UpdateBudget from "../updateBudget";
 
 // const dataSource = [
@@ -218,6 +219,12 @@ const getDropDownOptions = (data) => {
       {
         label: "Mark as Inactive",
         key: CAMPAIGN_STATUS.INACTIVE,
+        keyToUpdate: "status",
+      },
+      {
+        label: "Delete Campaign",
+        key: DELETE_CAMPAIGN,
+        keyToUpdate: "isDelete",
       },
     ];
   }
@@ -225,6 +232,12 @@ const getDropDownOptions = (data) => {
     {
       label: "Mark as Active",
       key: CAMPAIGN_STATUS.ACTIVE,
+      keyToUpdate: "status",
+    },
+    {
+      label: "Delete Campaign",
+      key: DELETE_CAMPAIGN,
+      keyToUpdate: "isDelete",
     },
   ];
 };
@@ -241,7 +254,11 @@ const Content = () => {
       const campaignsRef = query(ref(database, "campaigns"));
       unsubscribe = onValue(campaignsRef, (snapshot) => {
         const campaignsResponse = snapshot.val();
-        setCampaigns(_sortBy(_values(campaignsResponse), "createdAt"));
+        setCampaigns(
+          getUndeletedCampaigns(
+            _sortBy(_values(campaignsResponse), "createdAt")
+          )
+        );
       });
 
       const configRandomRef = query(ref(database, "config/randomValues"));
@@ -266,9 +283,17 @@ const Content = () => {
     return {
       items: getDropDownOptions(data),
       onClick: async ({ key }) => {
-        const { status, msg } = await updateCampaign(data, {
-          status: key,
-        });
+        let dataToUpdate = {};
+        if (
+          key === CAMPAIGN_STATUS.ACTIVE ||
+          key === CAMPAIGN_STATUS.INACTIVE
+        ) {
+          dataToUpdate = { status: key };
+        }
+        if (key === DELETE_CAMPAIGN) {
+          dataToUpdate = { isDeleted: true };
+        }
+        const { status, msg } = await updateCampaign(data, dataToUpdate);
         toast(msg);
       },
     };
